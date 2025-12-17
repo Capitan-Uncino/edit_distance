@@ -1,5 +1,10 @@
+dir = @__DIR__
+filepath = joinpath(dir, "keyboard_layout_distance.txt")
 
-dir = @_DIR_
+filepath2 = joinpath(dir, "words_alpha.txt")
+lines = readlines(filepath)
+words = [split(line) for line in lines]
+
 
 function read_matrix(filepath)
 
@@ -22,15 +27,16 @@ function read_matrix(filepath)
         D[i, j] = parse(Float64, t[3])
     end
 
-    D  # distance matrix 
+    D
 end 
 
 
 function find_distance(letter_up, letter_left, number_up, number_left, number_upleft)
     if letter_up == letter_left 
-      return min(number_up,number_left,number_upleft)
+        return number_upleft
+        #return min(number_up,number_left,number_upleft)
     else
-      return 1 + min(number_up,number_left,number_upleft)
+        return 1 + min(number_up,number_left,number_upleft)
     end
 end
 
@@ -40,12 +46,12 @@ function uninformed_edit_distance(word1, word2)
     word_left = word2
     n = length(word_up)
     m = length(word_left)
-    distances = zeros(Uint8,m+1,n+1)
+    distances = zeros(Int,m+1,n+1)
     for i in 1:m+1 
-        distances[i,1]
+        distances[i,1] = i-1
     end
     for i in 1:n+1 
-        distances[1,i]
+        distances[1,i] = i-1
     end
 
     for i in 2:m+1 
@@ -55,3 +61,8 @@ function uninformed_edit_distance(word1, word2)
     end
     return distances[m+1,n+1]
 end
+
+s = "misspelling"
+t = "ispellnig"
+
+uninformed_edit_distance(s,t)
