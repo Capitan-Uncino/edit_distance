@@ -2,33 +2,30 @@ dir = @__DIR__
 filepath = joinpath(dir, "keyboard_layout_distance.txt")
 
 filepath2 = joinpath(dir, "words_alpha.txt")
-lines = readlines(filepath)
-words = [split(line) for line in lines]
 
-
-function read_matrix(filepath)
-
+function create_dictionary(filepath)
     lines = readlines(filepath)
     data = [split(line) for line in lines]
 
-    labels = unique(vcat(
-        [t[1] for t in data],
-        [t[2] for t in data]
-    ))
-
-    index = Dict(label => i for (i, label) in enumerate(labels))
-
-    n = length(labels)
-    D = fill(NaN, n, n)
+    D = Dict{Tuple{String, String}, Float64}()
 
     for t in data
-        i = index[t[1]]
-        j = index[t[2]]
-        D[i, j] = parse(Float64, t[3])
+        key = (t[1], t[2])
+        value = parse(Float64, t[3])
+        D[key] = value
     end
 
-    D
-end 
+    return D
+end
+
+function normalize_dictionary!(D)
+    max_val, max_key = findmax(D)
+    println(max_val)
+    for k in keys(D)
+        D[k] = D[k] / max_val
+    end
+    return D
+end
 
 
 function find_distance(letter_up, letter_left, number_up, number_left, number_upleft)
@@ -66,3 +63,6 @@ s = "misspelling"
 t = "ispellnig"
 
 uninformed_edit_distance(s,t)
+
+D = create_dictionary(filepath)
+D = normalize_dictionary!(D)
