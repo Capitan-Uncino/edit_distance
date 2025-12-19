@@ -329,6 +329,6 @@ for (original, error) in zip(words, words_sbagliate)
     end
 end
 
-println("INFORMED: \nCorrect words: ", num_correct)
+println("\nINFORMED: \nCorrect words: ", num_correct)
 println("Incorrect words: ", num_incorrect)
 println("Accuracy informed version: ", round(num_correct / length(words) * 100, digits=2), "%")
