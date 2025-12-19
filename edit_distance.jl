@@ -28,7 +28,7 @@ function normalize_dictionary!(D)
 end
 
 
-function find_distance(letter_up, letter_left, number_up, number_left, number_upleft)
+function find_uninformed_distance(letter_up, letter_left, number_up, number_left, number_upleft)
     if letter_up == letter_left
         return number_upleft
     else
@@ -37,9 +37,26 @@ function find_distance(letter_up, letter_left, number_up, number_left, number_up
 end
 
 
+function find_informed_distance(letter_up, letter_left, number_up, number_left, number_upleft, D)
+    if letter_up == letter_left
+        return number_upleft
+    else
+        key = (string(letter_up), string(letter_left))
+        cost_change = get(D, key, 1.0)
+
+        cost = minimum((
+            number_up + 1.0,  # delete
+            number_left + 1.0,  # insert
+            number_upleft + cost_change   # substitute
+        ))
+        return cost
+    end
+end
+
+
 function uninformed_edit_distance(word1, word2)
-    word_up = word1
-    word_left = word2
+    word_up = word1         # correct word
+    word_left = word2       # mispelled word
     n = length(word_up)
     m = length(word_left)
     distances = zeros(Int, m + 1, n + 1)
@@ -52,7 +69,31 @@ function uninformed_edit_distance(word1, word2)
 
     for i in 2:m+1
         for j in 2:n+1
-            distances[i, j] = find_distance(word_up[j-1], word_left[i-1], distances[i-1, j], distances[i, j-1], distances[i-1, j-1])
+            distances[i, j] = find_uninformed_distance(word_up[j-1], word_left[i-1], 
+                                                        distances[i-1, j], distances[i, j-1], distances[i-1, j-1])
+        end
+    end
+    return distances[m+1, n+1]
+end
+
+
+function informed_edit_distance(word1, word2, D)
+    word_up = word1         # correct word
+    word_left = word2       # mispelled word
+    n = length(word_up)
+    m = length(word_left)
+    distances = zeros(Float64, m+1, n+1)
+    for i in 1:m+1
+        distances[i, 1] = i - 1
+    end
+    for i in 1:n+1
+        distances[1, i] = i - 1
+    end
+
+    for i in 2:m+1
+        for j in 2:n+1
+            distances[i, j] = find_informed_distance(word_up[j-1], word_left[i-1], 
+                                                        distances[i-1, j], distances[i, j-1], distances[i-1, j-1], D)
         end
     end
     return distances[m+1, n+1]
@@ -192,14 +233,14 @@ function apply_errors(strings::Vector{String},
     return out
 end
 
-function find_closest_word(words_correct, words_err)
+function find_closest_word(words_correct, words_err, D)
     closest_words = Dict{String,String}()
     closest = ""
 
     for s_err in words_err
         d_min = Inf
         for s_corr in words_correct
-            d = uninformed_edit_distance(s_corr, s_err)
+            d = informed_edit_distance(s_corr, s_err, D)
             if d < d_min
                 d_min = d
                 closest = s_corr
@@ -223,7 +264,7 @@ D = create_dictionary(filepath)
 D = normalize_dictionary!(D)
 
 words = readlines(filepath2)
-words = words[1:10000]
+words = words[1:100]
 
 
 probs = initialize_swaps_distribution_1(filepath)
@@ -234,7 +275,7 @@ words_sbagliate = apply_errors(words, probs)
 #println(words)
 #println(words_sbagliate)
 
-closest = find_closest_word(words, words_sbagliate)
+closest = find_closest_word(words, words_sbagliate, D)
 
 
 num_correct = 0
