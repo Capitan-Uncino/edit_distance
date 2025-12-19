@@ -51,11 +51,7 @@ function find_informed_distance(letter_up, letter_left, number_up, number_left, 
             cost_insert = 1.0 - maximum(values(probs[letter_up]))
         end
 
-        cost = minimum((
-            number_up + cost_delete,  
-            number_left + cost_insert,  
-            number_upleft + cost_substitute
-        ))
+        cost = min(number_up + cost_delete,  number_left + cost_insert,  number_upleft + cost_substitute)
         return cost
     end
 end
@@ -236,7 +232,28 @@ function apply_errors(strings::Vector{String},
     return out
 end
 
-function find_closest_word(words_correct, words_err, D, probs)
+function find_closest_word_uninformed(words_correct, words_err)
+    closest_words = Dict{String,String}()
+    closest = ""
+
+    for s_err in words_err
+        d_min = Inf
+        for s_corr in words_correct
+            d = uninformed_edit_distance(s_corr, s_err)
+            if d < d_min
+                d_min = d
+                closest = s_corr
+            end
+        end
+
+        closest_words[s_err] = closest
+    end
+
+    return closest_words
+end
+
+
+function find_closest_word_informed(words_correct, words_err, D, probs)
     closest_words = Dict{String,String}()
     closest = ""
 
@@ -267,21 +284,22 @@ D = create_dictionary(filepath)
 D = normalize_dictionary!(D)
 
 words = readlines(filepath2)
-#words = words[1:100]
+words = words[1:1000]
 
 
 probs = initialize_swaps_distribution_1(filepath)
 words = uppercase.(words)
 words_sbagliate = apply_errors(words, probs)
 
-closest = find_closest_word(words, words_sbagliate, D, probs)
 
+# Uninformed
+closest_uninformed = find_closest_word_uninformed(words, words_sbagliate)
 
 num_correct = 0
 num_incorrect = 0
 
 for (original, error) in zip(words, words_sbagliate)
-    correct = closest[error]
+    correct = closest_uninformed[error]
 
     if original == correct
         num_correct += 1
@@ -290,6 +308,27 @@ for (original, error) in zip(words, words_sbagliate)
     end
 end
 
-println("\nNumero parole corrette: ", num_correct)
-println("Numero parole non corrette: ", num_incorrect)
-println("Accuracy: ", round(num_correct / length(words) * 100, digits=2), "%")
+println("UNINFORMED: \nCorrect words: ", num_correct)
+println("Incorrect words: ", num_incorrect)
+println("Accuracy uninformed: ", round(num_correct / length(words) * 100, digits=2), "%")
+
+
+# Informed test
+closest_informed = find_closest_word_informed(words, words_sbagliate, D, probs)
+
+num_correct = 0
+num_incorrect = 0
+
+for (original, error) in zip(words, words_sbagliate)
+    correct = closest_informed[error]
+
+    if original == correct
+        num_correct += 1
+    else
+        num_incorrect += 1
+    end
+end
+
+println("INFORMED: \nCorrect words: ", num_correct)
+println("Incorrect words: ", num_incorrect)
+println("Accuracy informed version: ", round(num_correct / length(words) * 100, digits=2), "%")
