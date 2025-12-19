@@ -37,7 +37,7 @@ function find_uninformed_distance(letter_up, letter_left, number_up, number_left
 end
 
 
-function find_informed_distance(letter_up, letter_left, number_up, number_left, number_upleft, D, probs)
+function find_informed_distance(letter_up, letter_left, number_up, number_left, number_upleft, D)
   if letter_up == letter_left
     return number_upleft
   else
@@ -47,9 +47,6 @@ function find_informed_distance(letter_up, letter_left, number_up, number_left, 
     cost_delete = 1.0
 
     cost_insert = 1.0
-    if haskey(probs, letter_up)
-      cost_insert = 1.0 - maximum(values(probs[letter_up]))
-    end
 
     cost = min(number_up + cost_delete, number_left + cost_insert, number_upleft + cost_substitute)
     return cost
@@ -81,7 +78,7 @@ function uninformed_edit_distance(word1, word2)
 end
 
 
-function informed_edit_distance(word1, word2, D, probs)
+function informed_edit_distance(word1, word2, D)
   word_up = word1         # correct word
   word_left = word2       # misspelled word
   n = length(word_up)
@@ -97,14 +94,14 @@ function informed_edit_distance(word1, word2, D, probs)
   for i in 2:m+1
     for j in 2:n+1
       distances[i, j] = find_informed_distance(word_up[j-1], word_left[i-1],
-        distances[i-1, j], distances[i, j-1], distances[i-1, j-1], D, probs)
+        distances[i-1, j], distances[i, j-1], distances[i-1, j-1], D)
     end
   end
   return distances[m+1, n+1]
 end
 
 
-function initialize_swaps_distribution_1(distances_path)
+function initialize_swaps_distribution(distances_path)
   lines = readlines(distances_path)
 
   dist = Dict{Char,Dict{Char,Float64}}()
@@ -137,44 +134,6 @@ function initialize_swaps_distribution_1(distances_path)
     probs[from] = Dict(to => wt / Z for (to, wt) in w)
   end
 
-  return probs
-end
-
-
-
-function initialize_swaps_distribution_2(distances_path)
-  lines = readlines(distances_path)
-
-  dist = Dict{Char,Dict{Char,Float64}}()
-
-  for line in lines
-    a, b, d = split(line)
-    d = parse(Float64, d)
-
-    from = a[1]
-    to = b[1]
-
-    get!(dist, from, Dict{Char,Float64}())[to] = d
-  end
-
-  weights = Dict{Char,Dict{Char,Float64}}()
-
-  τ = 30.0
-
-  for (from, targets) in dist
-    w = Dict{Char,Float64}()
-    for (to, d) in targets
-      w[to] = exp(-d / τ)
-    end
-    weights[from] = w
-  end
-
-  probs = Dict{Char,Dict{Char,Float64}}()
-
-  for (from, w) in weights
-    Z = sum(values(w))
-    probs[from] = Dict(to => wt / Z for (to, wt) in w)
-  end
   return probs
 end
 
@@ -263,14 +222,14 @@ function find_closest_word_uninformed(words_correct, words_err)
 end
 
 
-function find_closest_word_informed(words_correct, words_err, D, probs)
+function find_closest_word_informed(words_correct, words_err, D)
   closest_words = Dict{String,String}()
   closest = ""
 
   for s_err in words_err
     d_min = Inf
     for s_corr in words_correct
-      d = informed_edit_distance(s_corr, s_err, D, probs)
+      d = informed_edit_distance(s_corr, s_err, D)
       if d < d_min
         d_min = d
         closest = s_corr
@@ -297,7 +256,7 @@ words = readlines(filepath2)
 words = words[1:1000]
 
 
-probs = initialize_swaps_distribution_1(filepath)
+probs = initialize_swaps_distribution(filepath)
 words = uppercase.(words)
 
 alphabet = collect('a':'z')
@@ -328,7 +287,7 @@ println("Accuracy uninformed: ", round(num_correct / length(words) * 100, digits
 
 
 # Informed test
-closest_informed = find_closest_word_informed(words, words_sbagliate, D, probs)
+closest_informed = find_closest_word_informed(words, words_sbagliate, D)
 
 num_correct = 0
 num_incorrect = 0
