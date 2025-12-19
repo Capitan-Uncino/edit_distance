@@ -57,8 +57,8 @@ end
 function uninformed_edit_distance(word1, word2)
     word_up = word1         # correct word
     word_left = word2       # mispelled word
-    n = length(word_up)
     m = length(word_left)
+    n = length(word_up)
     distances = zeros(Int, m + 1, n + 1)
     for i in 1:m+1
         distances[i, 1] = i - 1
