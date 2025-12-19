@@ -20,7 +20,7 @@ end
 
 function normalize_dictionary!(D)
     max_val, max_key = findmax(D)
-    println(max_val)
+    
     for k in keys(D)
         D[k] = D[k] / max_val
     end
@@ -37,34 +37,42 @@ function find_uninformed_distance(letter_up, letter_left, number_up, number_left
 end
 
 
-function find_informed_distance(letter_up, letter_left, number_up, number_left, number_upleft, D)
+function find_informed_distance(letter_up, letter_left, number_up, number_left, number_upleft, D, probs)
     if letter_up == letter_left
         return number_upleft
     else
         key = (string(letter_up), string(letter_left))
-        cost_change = get(D, key, 1.0)
+        cost_substitute = get(D, key, 1.0)
+
+        cost_delete = 1.0
+        
+        cost_insert = 1.0
+        if haskey(probs, letter_up)
+            cost_insert = 1.0 - maximum(values(probs[letter_up]))
+        end
 
         cost = minimum((
-            number_up + 1.0,  # delete
-            number_left + 1.0,  # insert
-            number_upleft + cost_change   # substitute
+            number_up + cost_delete,  
+            number_left + cost_insert,  
+            number_upleft + cost_substitute
         ))
         return cost
     end
 end
 
 
+
 function uninformed_edit_distance(word1, word2)
     word_up = word1         # correct word
-    word_left = word2       # mispelled word
+    word_left = word2       # misspelled word
     m = length(word_left)
     n = length(word_up)
     distances = zeros(Int, m + 1, n + 1)
     for i in 1:m+1
         distances[i, 1] = i - 1
     end
-    for i in 1:n+1
-        distances[1, i] = i - 1
+    for j in 1:n+1
+        distances[1, j] = j - 1
     end
 
     for i in 2:m+1
@@ -77,9 +85,9 @@ function uninformed_edit_distance(word1, word2)
 end
 
 
-function informed_edit_distance(word1, word2, D)
+function informed_edit_distance(word1, word2, D, probs)
     word_up = word1         # correct word
-    word_left = word2       # mispelled word
+    word_left = word2       # misspelled word
     n = length(word_up)
     m = length(word_left)
     distances = zeros(Float64, m+1, n+1)
@@ -93,7 +101,7 @@ function informed_edit_distance(word1, word2, D)
     for i in 2:m+1
         for j in 2:n+1
             distances[i, j] = find_informed_distance(word_up[j-1], word_left[i-1], 
-                                                        distances[i-1, j], distances[i, j-1], distances[i-1, j-1], D)
+                                                        distances[i-1, j], distances[i, j-1], distances[i-1, j-1], D, probs)
         end
     end
     return distances[m+1, n+1]
@@ -103,7 +111,6 @@ end
 function initialize_swaps_distribution_1(distances_path)
     lines = readlines(distances_path)
 
-    # store as: dict[from_letter] = Dict(to_letter => distance)
     dist = Dict{Char,Dict{Char,Float64}}()
 
     for line in lines
@@ -142,7 +149,6 @@ end
 function initialize_swaps_distribution_2(distances_path)
     lines = readlines(distances_path)
 
-    # store as: dict[from_letter] = Dict(to_letter => distance)
     dist = Dict{Char,Dict{Char,Float64}}()
 
     for line in lines
@@ -176,9 +182,6 @@ function initialize_swaps_distribution_2(distances_path)
     return probs
 end
 
-
-
-using Distributions
 
 function sample_swap(probs, from::Char)
   letters = collect(keys(probs[from]))
@@ -233,14 +236,14 @@ function apply_errors(strings::Vector{String},
     return out
 end
 
-function find_closest_word(words_correct, words_err, D)
+function find_closest_word(words_correct, words_err, D, probs)
     closest_words = Dict{String,String}()
     closest = ""
 
     for s_err in words_err
         d_min = Inf
         for s_corr in words_correct
-            d = informed_edit_distance(s_corr, s_err, D)
+            d = informed_edit_distance(s_corr, s_err, D, probs)
             if d < d_min
                 d_min = d
                 closest = s_corr
@@ -264,29 +267,22 @@ D = create_dictionary(filepath)
 D = normalize_dictionary!(D)
 
 words = readlines(filepath2)
-words = words[1:100]
+#words = words[1:100]
 
 
 probs = initialize_swaps_distribution_1(filepath)
-#words = ["pizza", "pasta", "mandolino", "misspelling"]
 words = uppercase.(words)
 words_sbagliate = apply_errors(words, probs)
 
-#println(words)
-#println(words_sbagliate)
-
-closest = find_closest_word(words, words_sbagliate, D)
+closest = find_closest_word(words, words_sbagliate, D, probs)
 
 
 num_correct = 0
 num_incorrect = 0
 
-println("Original     Wrong       Correct    Distance")
-
 for (original, error) in zip(words, words_sbagliate)
     correct = closest[error]
-    #println("$original\t→     \t$error\t→   \t$correct")
-    
+
     if original == correct
         num_correct += 1
     else
